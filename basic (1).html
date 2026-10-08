@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Think Like a Machine — Online Quiz</title>
+  <style>
+    :root{
+      --bg:#0f1724; /* dark navy */
+      --card:#0b1220;
+      --accent:#6ee7b7; /* mint */
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.03);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1000px 600px at 10% 10%, rgba(110,231,183,0.06), transparent),
+                  radial-gradient(800px 400px at 90% 90%, rgba(99,102,241,0.03), transparent),
+                  var(--bg);
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:24px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .container{
+      width:100%;
+      max-width:900px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:16px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      padding:24px;
+      backdrop-filter: blur(6px);
+      border:1px solid rgba(255,255,255,0.03);
+    }
+    header{
+      display:flex;
+      gap:16px;
+      align-items:center;
+      margin-bottom:18px;
+    }
+    .logo{
+      width:64px;height:64px;border-radius:12px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--accent), #7c3aed);
+      color:#021025;font-weight:700;font-size:14px;
+      box-shadow:0 6px 18px rgba(110,231,183,0.06), inset 0 -6px 20px rgba(255,255,255,0.04);
+    }
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .quiz-card{
+      display:flex;gap:24px;align-items:flex-start;
+    }
+    .main{
+      flex:1;background:var(--card);padding:20px;border-radius:12px;border:1px solid var(--glass);
+    }
+    .sidebar{
+      width:240px;background:transparent;display:flex;flex-direction:column;gap:12px
+    }
+    .question-count{font-size:13px;color:var(--muted);margin-bottom:8px}
+    .question-text{font-size:18px;margin:10px 0 18px}
+    .choices{display:flex;flex-direction:column;gap:10px}
+    .choice{
+      background:transparent;border:1px solid rgba(255,255,255,0.04);padding:12px;border-radius:10px;cursor:pointer;
+      transition:all .18s;display:flex;align-items:center;gap:12px
+    }
+    .choice:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(2,6,23,0.6)}
+    .choice input{appearance:none}
+    .choice.selected{border-color:var(--accent);box-shadow:0 6px 18px rgba(110,231,183,0.06);background:linear-gradient(180deg, rgba(110,231,183,0.02), transparent)}
+    .controls{display:flex;gap:10px;align-items:center;margin-top:16px}
+    button{background:none;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;color:inherit}
+    .btn-primary{background:linear-gradient(90deg,var(--accent), #7c3aed);color:#021025;font-weight:700}
+    .btn-ghost{border:1px solid rgba(255,255,255,0.04)}
+    .progress{height:8px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent), #7c3aed);width:0%}
+    .meta{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+    .sidebar .card{background:var(--card);padding:12px;border-radius:10px;border:1px solid var(--glass)}
+    .qmap{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .qmap button{padding:8px;border-radius:8px}
+    .qmap button.answered{background:linear-gradient(90deg,var(--accent), #7c3aed);color:#021025}
+    .result{padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:12px}
+    footer.note{margin-top:14px;color:var(--muted);font-size:12px}
+
+    @media (max-width:880px){
+      .quiz-card{flex-direction:column}
+      .sidebar{width:100%;order:2}
+    }
+  </style>
+</head>
+<body>
+  <div class="container" role="main">
+    <header>
+      <div class="logo">TLM</div>
+      <div>
+        <h1>Think Like a Machine — Quick Quiz</h1>
+        <p class="lead">Test your algorithmic intuition — multiple choice, instant feedback.</p>
+      </div>
+    </header>
+
+    <section class="quiz-card">
+      <main class="main" id="main">
+        <div class="question-count" id="qcount">Question 1 of 5</div>
+        <div class="question-text" id="question">Loading…</div>
+
+        <div class="choices" id="choices"></div>
+
+        <div class="controls">
+          <button id="prev" class="btn-ghost" aria-label="Previous">◀ Prev</button>
+          <button id="next" class="btn-ghost" aria-label="Next">Next ▶</button>
+          <div style="flex:1"></div>
+          <div class="meta">
+            <div>Time: <span id="timer">00:00</span></div>
+            <div>Score: <strong id="score">0</strong></div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="progress" aria-hidden><i id="progbar"></i></div>
+        </div>
+
+        <div id="resultArea" style="margin-top:18px"></div>
+
+      </main>
+
+      <aside class="sidebar">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">Quiz Map</div>
+            <div style="font-size:12px;color:var(--muted)">Jump</div>
+          </div>
+          <div style="height:8px"></div>
+          <div class="qmap" id="qmap"></div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">Quick Actions</div>
+            <div style="font-size:12px;color:var(--muted)">Control</div>
+          </div>
+          <div style="height:8px"></div>
+          <div style="display:flex;gap:8px">
+            <button id="restart" class="btn-ghost">Restart</button>
+            <button id="finish" class="btn-primary">Finish</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:700">Tips</div>
+          <p style="margin:8px 0 0;color:var(--muted);font-size:13px">Read each scenario, imagine how a simple algorithm would choose — greedy vs exhaustive thinking.</p>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="note">Built for learning. Want more questions or a CSV export? Tell me and I'll add it.</footer>
+  </div>
+
+  <script>
+    // Simple single-file quiz app logic
+    const quiz = [
+      {
+        q: 'Which strategy would a simple greedy algorithm use when picking items for maximum value under a capacity limit?',
+        choices: ['Try combinations exhaustively', 'Pick the item with the highest value-to-weight ratio first', 'Pick the heaviest items first', 'Pick items randomly'],
+        a: 1
+      },
+      {
+        q: 'What does overfitting look like for a machine learning model?',
+        choices: ['Great performance on training data and poor on new data', 'Poor training performance but excellent generalization', 'Model uses too little memory', 'Model runs faster than expected'],
+        a: 0
+      },
+      {
+        q: 'Which search method guarantees the shortest path in an unweighted graph?',
+        choices: ['Depth-first search', 'A* with an admissible heuristic', 'Breadth-first search', 'Greedy best-first search'],
+        a: 2
+      },
+      {
+        q: 'If a function calls itself with n-1, n-2, ... until 0, what is the time complexity in Big-O of such a recursion similar to Fibonacci naive approach?',
+        choices: ['O(n)', 'O(n log n)', 'O(2^n)', 'O(n^2)'],
+        a: 2
+      },
+      {
+        q: 'Which of these is a common activation function in neural networks?',
+        choices: ['ReLU', 'Sigmoid', 'Tanh', 'All of the above'],
+        a: 3
+      }
+    ];
+
+    let current = 0;
+    const answers = new Array(quiz.length).fill(null);
+    let score = 0;
+    let seconds=0;let timerInterval=null;
+
+    const qcount = document.getElementById('qcount');
+    const question = document.getElementById('question');
+    const choicesEl = document.getElementById('choices');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const scoreEl = document.getElementById('score');
+    const qmap = document.getElementById('qmap');
+    const progbar = document.getElementById('progbar');
+    const timerEl = document.getElementById('timer');
+    const restartBtn = document.getElementById('restart');
+    const finishBtn = document.getElementById('finish');
+    const resultArea = document.getElementById('resultArea');
+
+    function startTimer(){
+      if(timerInterval) clearInterval(timerInterval);
+      seconds = 0; timerEl.textContent = formatTime(seconds);
+      timerInterval = setInterval(()=>{seconds++; timerEl.textContent = formatTime(seconds)},1000);
+    }
+    function formatTime(s){
+      const mm = String(Math.floor(s/60)).padStart(2,'0');
+      const ss = String(s%60).padStart(2,'0');
+      return mm+':'+ss;
+    }
+
+    function renderQuestion(i){
+      const item = quiz[i];
+      qcount.textContent = `Question ${i+1} of ${quiz.length}`;
+      question.textContent = item.q;
+      choicesEl.innerHTML = '';
+      item.choices.forEach((c, idx)=>{
+        const btn = document.createElement('button');
+        btn.className = 'choice';
+        btn.type='button';
+        btn.innerHTML = `<div style="width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:1px solid rgba(255,255,255,0.03);font-weight:700">${String.fromCharCode(65+idx)}</div><div style="flex:1;text-align:left">${c}</div>`;
+        if(answers[i]===idx) btn.classList.add('selected');
+        btn.addEventListener('click', ()=>selectAnswer(i,idx));
+        choicesEl.appendChild(btn);
+      });
+
+      // update prog
+      const pct = Math.round(((i)/quiz.length)*100);
+      progbar.style.width = pct + '%';
+
+      // update qmap highlights
+      Array.from(qmap.children).forEach((b,bi)=>{
+        b.classList.toggle('answered', answers[bi]!==null);
+        b.classList.toggle('active', bi===i);
+      });
+
+      // clear result area
+      resultArea.innerHTML='';
+    }
+
+    function selectAnswer(qIndex, choiceIndex){
+      answers[qIndex] = choiceIndex;
+      // mark selected UI
+      const nodes = choicesEl.querySelectorAll('.choice');
+      nodes.forEach((n,idx)=>n.classList.toggle('selected', idx===choiceIndex));
+      // instant feedback
+      showFeedback(qIndex, choiceIndex);
+      updateScore();
+      renderQmap();
+    }
+
+    function showFeedback(qIndex, choiceIndex){
+      const correct = quiz[qIndex].a;
+      const area = document.createElement('div');
+      area.className='result';
+      if(choiceIndex===correct){
+        area.innerHTML = `<strong>Correct!</strong> — Good machine-y thinking.`;
+      } else {
+        area.innerHTML = `<strong>Incorrect.</strong> Correct answer: <em>${String.fromCharCode(65+correct)}. ${quiz[qIndex].choices[correct]}</em>`;
+      }
+      resultArea.innerHTML='';
+      resultArea.appendChild(area);
+    }
+
+    function updateScore(){
+      // simple scoring: +1 per correct
+      let s=0;
+      answers.forEach((ans, i)=>{ if(ans===quiz[i].a) s++; });
+      score = s; scoreEl.textContent = score;
+    }
+
+    prevBtn.addEventListener('click', ()=>{
+      if(current>0) current--; renderQuestion(current);
+    });
+    nextBtn.addEventListener('click', ()=>{
+      if(current < quiz.length-1) current++; else current=quiz.length-1; renderQuestion(current);
+    });
+
+    function renderQmap(){
+      qmap.innerHTML='';
+      quiz.forEach((_,i)=>{
+        const b = document.createElement('button');
+        b.textContent = i+1;
+        if(answers[i]!==null) b.classList.add('answered');
+        b.addEventListener('click', ()=>{ current=i; renderQuestion(i); });
+        qmap.appendChild(b);
+      });
+    }
+
+    restartBtn.addEventListener('click', ()=>{
+      if(confirm('Restart quiz? All answers will be cleared.')){
+        answers.fill(null); score=0; scoreEl.textContent=score; current=0; renderQuestion(0); renderQmap(); progbar.style.width='0%'; resultArea.innerHTML=''; startTimer();
+      }
+    });
+
+    finishBtn.addEventListener('click', ()=>{
+      if(!confirm('Finish and see results?')) return;
+      finishQuiz();
+    });
+
+    function finishQuiz(){
+      clearInterval(timerInterval);
+      updateScore();
+      const total = quiz.length;
+      const pct = Math.round((score/total)*100);
+      progbar.style.width = '100%';
+      resultArea.innerHTML = `<div class="result"><h3>Your Result</h3><p>Score: <strong>${score}</strong> / ${total} (${pct}%)</p><p>Time taken: <strong>${formatTime(seconds)}</strong></p></div>`;
+      // show detailed feedback
+      const details = document.createElement('div');
+      details.style.marginTop='12px';
+      quiz.forEach((q,i)=>{
+        const d = document.createElement('div');
+        d.style.padding='8px';d.style.borderTop='1px dashed rgba(255,255,255,0.03)';
+        const userAns = answers[i]===null? 'No answer' : `${String.fromCharCode(65+answers[i])}. ${quiz[i].choices[answers[i]]}`;
+        const correct = `${String.fromCharCode(65+quiz[i].a)}. ${quiz[i].choices[quiz[i].a]}`;
+        d.innerHTML = `<strong>Q${i+1}:</strong> ${q.q}<br><em>Your answer:</em> ${userAns}<br><em>Correct:</em> ${correct}`;
+        details.appendChild(d);
+      });
+      resultArea.appendChild(details);
+    }
+
+    // init
+    renderQmap(); renderQuestion(0); startTimer();
+
+  </script>
+</body>
+</html>
